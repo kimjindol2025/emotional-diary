@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # 백엔드 (Express + SQLite)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: emotional-diary-backend
+    ports:
+      - "50050:50050"
+    environment:
+      NODE_ENV: production
+      PORT: 50050
+      DB_PATH: ./db/diary.sqlite
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      CORS_ORIGIN: http://localhost:5173,http://diary.dclub.kr,https://diary.dclub.kr
+    volumes:
+      - ./backend/db:/app/db
+      - ./backend/logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50050/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 프론트엔드 (Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: emotional-diary-frontend
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_URL: http://backend:50050
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  default:
+    name: emotional-diary-network
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
